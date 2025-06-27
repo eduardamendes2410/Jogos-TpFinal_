@@ -11,6 +11,7 @@
 #include "../Components/Component.h"
 #include <algorithm>
 
+//Comentario
 Actor::Actor(Game* game)
         : mState(ActorState::Active)
         , mPosition(Vector2::Zero)
