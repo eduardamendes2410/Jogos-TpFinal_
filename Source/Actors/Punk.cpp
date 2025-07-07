@@ -85,6 +85,10 @@ void Punk::OnProcessInput(const uint8_t *state)
         if (mArm->mFoundShotgun == false) return;
         mArm->ChangeWeapon();
     }
+
+    if (state[SDL_SCANCODE_G]) {
+        SetPosition(Vector2(608.0f, 832.0f));
+    }
 }
 
 void Punk::OnHandleKeyPress(const int key, const bool isPressed)
