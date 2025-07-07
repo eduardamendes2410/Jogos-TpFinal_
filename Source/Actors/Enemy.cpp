@@ -147,7 +147,7 @@ void Enemy::TakeDamage()
 {
     if (mIsDying || mTakingDamage) return;
 
-    mHP--;
+    mHP -= 10;
 
     if (mHP <= 0)
     {
