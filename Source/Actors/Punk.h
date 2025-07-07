@@ -6,6 +6,8 @@
 #include "Actor.h"
 #include "PunkArm.h"
 #include <SDL.h>
+#include <functional>
+#include <vector>
 
 const float DEATH_TIMER = 0.71f; // seconds
 
@@ -62,6 +64,10 @@ private:
     class AABBColliderComponent* mColliderComponent;
 
     class PunkArm* mArm;
+
+    float mCallBackTimer;
+    float mCallBackCooldown;
+    std::vector<std::function<void()>> mShortcutCallbacks;
 
     void MaintainInbound();
     void TakeDamage();

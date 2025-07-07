@@ -14,7 +14,9 @@
 #include "../UIElements/DialogueSystem.h"
 
 Punk::Punk(Game *game, const float forwardSpeed, const float jumpSpeed)
-    : Actor(game), mIsRunning(false), mIsOnPole(false), mIsDying(false), mForwardSpeed(forwardSpeed), mJumpSpeed(jumpSpeed), mPoleSlideTimer(0.0f), mFoundKey(false), mDeathTimer(0.0f)
+    : Actor(game), mIsRunning(false), mIsOnPole(false), mIsDying(false),
+      mForwardSpeed(forwardSpeed), mJumpSpeed(jumpSpeed), mPoleSlideTimer(0.0f),
+      mFoundKey(false), mDeathTimer(0.0f), mCallBackCooldown(3.0f), mCallBackTimer(0.0f)
 {
     mRigidBodyComponent = new RigidBodyComponent(this, 1.0f, 5.0f, false);
     mColliderComponent = new AABBColliderComponent(this, 14, 20, 18, 28,
@@ -37,6 +39,15 @@ Punk::Punk(Game *game, const float forwardSpeed, const float jumpSpeed)
 
     mArm = new PunkArm(mGame, this, [this](Vector2 &recoilDir)
                        { OnShoot(recoilDir); });
+
+    mShortcutCallbacks = {
+        [this]()
+        {SetPosition(Vector2(608.0f, 832.0f));},
+        [this]()
+        {SetPosition(Vector2(1490.0f, 100.0f));},
+        [this]()
+        {SetPosition(Vector2(622.0f, 150.0f));}
+    };
 }
 
 void Punk::OnShoot(Vector2 &recoilForce)
@@ -82,12 +93,16 @@ void Punk::OnProcessInput(const uint8_t *state)
 
     if (state[SDL_SCANCODE_F])
     {
-        if (mArm->mFoundShotgun == false) return;
+        if (mArm->mFoundShotgun == false)
+            return;
         mArm->ChangeWeapon();
     }
 
-    if (state[SDL_SCANCODE_G]) {
-        SetPosition(Vector2(608.0f, 832.0f));
+    if (state[SDL_SCANCODE_G] && mCallBackTimer <= 0.0f)
+    {
+        mShortcutCallbacks[0]();
+        mShortcutCallbacks.erase(mShortcutCallbacks.begin());
+        mCallBackTimer = mCallBackCooldown;
     }
 }
 
@@ -146,6 +161,9 @@ void Punk::MaintainInbound()
 
 void Punk::OnUpdate(float deltaTime)
 {
+    if (mCallBackTimer > 0.0f) mCallBackTimer -= deltaTime;
+    else mCallBackTimer = 0.0f;
+    
     if (mGame->GetGamePlayState() == Game::GamePlayState::Dialogue)
     {
         mDrawComponent->SetAnimation("idle");
@@ -249,18 +267,21 @@ void Punk::OnHorizontalCollision(const float minOverlap, AABBColliderComponent *
         return;
     }
 
-    if (other->GetLayer() == ColliderLayer::Portal && mGame->GetGameScene() == Game::GameScene::Level1) {
+    if (other->GetLayer() == ColliderLayer::Portal && mGame->GetGameScene() == Game::GameScene::Level1)
+    {
         mGame->SetGameScene(Game::GameScene::Level2, .25f);
         other->SetEnabled(false);
         return;
     }
 
-    if (other->GetLayer() == ColliderLayer::Portal && mGame->GetGameScene() == Game::GameScene::Level2) {
+    if (other->GetLayer() == ColliderLayer::Portal && mGame->GetGameScene() == Game::GameScene::Level2)
+    {
         mGame->SetGameScene(Game::GameScene::Ending_GoHome, .25f);
         other->SetEnabled(false);
         return;
     }
-    if (other->GetLayer() == ColliderLayer::Portal2 && mGame->GetGameScene() == Game::GameScene::Level2) {
+    if (other->GetLayer() == ColliderLayer::Portal2 && mGame->GetGameScene() == Game::GameScene::Level2)
+    {
         mGame->SetGameScene(Game::GameScene::Ending_Stay, .25f);
         other->SetEnabled(false);
         return;
@@ -287,18 +308,21 @@ void Punk::OnVerticalCollision(const float minOverlap, AABBColliderComponent *ot
         return;
     }
 
-    if (other->GetLayer() == ColliderLayer::Portal && mGame->GetGameScene() == Game::GameScene::Level1) {
+    if (other->GetLayer() == ColliderLayer::Portal && mGame->GetGameScene() == Game::GameScene::Level1)
+    {
         mGame->SetGameScene(Game::GameScene::Level2, .25f);
         other->SetEnabled(false);
         return;
     }
 
-    if (other->GetLayer() == ColliderLayer::Portal && mGame->GetGameScene() == Game::GameScene::Level2) {
+    if (other->GetLayer() == ColliderLayer::Portal && mGame->GetGameScene() == Game::GameScene::Level2)
+    {
         mGame->SetGameScene(Game::GameScene::Ending_GoHome, .25f);
         other->SetEnabled(false);
         return;
     }
-    if (other->GetLayer() == ColliderLayer::Portal2 && mGame->GetGameScene() == Game::GameScene::Level2) {
+    if (other->GetLayer() == ColliderLayer::Portal2 && mGame->GetGameScene() == Game::GameScene::Level2)
+    {
         mGame->SetGameScene(Game::GameScene::Ending_Stay, .25f);
         other->SetEnabled(false);
         return;
@@ -315,47 +339,49 @@ void Punk::FindKey()
     mFoundKey = true;
     mGame->GetAudio()->PlaySound("KeyPick.wav");
 
-    if (mGame->GetGameScene() == Game::GameScene::Level1) {
+    if (mGame->GetGameScene() == Game::GameScene::Level1)
+    {
         DialogueSystem::Get()->StartDialogue(
-        {
-            "Punk: Uma chave! Agora, o que sera que ela abre?",
-                "Punk: Melhor eu dar uma olhada ao redor."
-        },
-    [this]() {
-        mGame->SetGamePlayState(Game::GamePlayState::Playing);
-    }
-    );
+            {"Punk: Uma chave! Agora, o que sera que ela abre?",
+             "Punk: Melhor eu dar uma olhada ao redor."},
+            [this]()
+            {
+                mGame->SetGamePlayState(Game::GamePlayState::Playing);
+            });
         const auto &portal = new Portal(mGame);
         portal->SetPosition(Vector2(622.0f, 210.0f));
     }
-    else {
+    else
+    {
         DialogueSystem::Get()->StartDialogue(
-        {
-            "Voz: Voce conseguiu. A ultima chave foi encontrada.",
-            "Voz: O caminho se abre em dois. O seu... e o nosso.",
-            "Voz: O portal verde oferece o seu lar, a sua paz... ao custo da nossa existencia.",
-            "Voz: O portal roxo vai te manter aqui, como o novo guardiao, para nos salvar.",
-            "Voz: A escolha e sua, Viajante do Eter."
-        },
-    [this]() {
-        mGame->SetGamePlayState(Game::GamePlayState::Playing);
-    }
-    );
+            {"Voz: Voce conseguiu. A ultima chave foi encontrada.",
+             "Voz: O caminho se abre em dois. O seu... e o nosso.",
+             "Voz: O portal verde oferece o seu lar, a sua paz... ao custo da nossa existencia.",
+             "Voz: O portal roxo vai te manter aqui, como o novo guardiao, para nos salvar.",
+             "Voz: A escolha e sua, Viajante do Eter."},
+            [this]()
+            {
+                mGame->SetGamePlayState(Game::GamePlayState::Playing);
+            });
         const auto &portal = new Portal(mGame);
         portal->SetPosition(Vector2(288.0f, 992.0f));
 
         const auto &portal2 = new Portal(mGame, 1);
         portal2->SetPosition(Vector2(416.0f, 970.0f));
     }
-
 }
 
-void Punk::FindHeart() {
-    if (mLives < 6) {mLives++;}
+void Punk::FindHeart()
+{
+    if (mLives < 6)
+    {
+        mLives++;
+    }
     mGame->GetAudio()->PlaySound("KeyPick.wav");
 }
 
-void Punk::FindShotgun() {
+void Punk::FindShotgun()
+{
     mArm->ChangeWeapon();
     mArm->mFoundShotgun = true;
     mGame->GetAudio()->PlaySound("KeyPick.wav");
@@ -373,7 +399,8 @@ int Punk::GetMaxAmmo()
 
 std::string Punk::GetCurrentWeaponName()
 {
-    if (!mArm->mChosenWeapon) {
+    if (!mArm->mChosenWeapon)
+    {
         return "Unknown";
     }
 
